@@ -36,10 +36,10 @@ static void usage() {
 
 int main(int argc, char *argv[]) {
 	CvCapture *capture = NULL;
-	IplImage *img = NULL;
+	IplImage *img = NULL, *frame = NULL;
 	char *input_file = NULL;
 	int cam_index = 0;
-	int opt;
+	int opt, key;
 
 	/* Parse command arguments */
 	while ((opt = getopt(argc, argv, "c:")) != -1) {
@@ -62,17 +62,50 @@ int main(int argc, char *argv[]) {
 		input_file = argv[optind];
 	}
 
+	cvNamedWindow("mainWin", CV_WINDOW_AUTOSIZE);
+	cvMoveWindow("mainWin", 50, 50);
+
 	if (input_file) {
 		/* Try and open the supplied image */
 		img = cvLoadImage(input_file, CV_LOAD_IMAGE_COLOR);
 		if (!img) {
 			exit_with("Failed to open image %s\n", input_file);
 		}
+
+		cvShowImage("mainWin", img);
+		cvWaitKey(0);
+
+		cvReleaseImage(&img);
 	} else {
+		// Use the camera
 		capture = cvCaptureFromCAM(cam_index);
 		if (!capture) {
 			exit_with("Failed to open cam #%d\n", cam_index);
 		}
+
+		while (1) {
+			frame = cvQueryFrame(capture);
+			if (!frame) {
+				break;
+			}
+
+			img = cvCreateImage(cvSize(frame->width, frame->height),
+			                    IPL_DEPTH_8U, frame->nChannels);
+			if (frame->origin == IPL_ORIGIN_TL) {
+				cvCopy(frame, img, 0);
+			} else {
+				cvFlip(frame, img, 0);
+			}
+
+			cvShowImage("mainWin", img);
+			key = cvWaitKey(10);
+			if (key == 27) {
+				break;
+			}
+		}
+
+		cvReleaseImage(&img);
+		cvReleaseCapture(&capture);
 	}
 
 	exit(EXIT_SUCCESS);
