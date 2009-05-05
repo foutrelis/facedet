@@ -102,9 +102,10 @@ int main(int argc, char *argv[]) {
 			if (key == 27) {
 				break;
 			}
+
+			cvReleaseImage(&img);
 		}
 
-		cvReleaseImage(&img);
 		cvReleaseCapture(&capture);
 	}
 
