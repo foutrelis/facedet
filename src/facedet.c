@@ -21,25 +21,90 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <pthread.h>
 #include <cv.h>
 #include <highgui.h>
 
 #include "common.h"
+#include "facedet.h"
 
 #ifdef HAVE_CONFIG_H
 	#include <config.h>
 #endif
 
+IplImage *frame = NULL;
+pthread_mutex_t frame_mutex;
+int shutdown = 0;
+
 static void usage() {
 	fprintf(stderr, "Usage: facedet [-c camera_index] [image_file]\n");
 }
 
+static void *capture_thread_func(void *src) {
+	source_t *source = (source_t *) src;
+	CvCapture *capture = source->capture;
+
+	while (!shutdown) {
+		pthread_mutex_lock(&frame_mutex);
+
+		frame = cvQueryFrame(capture);
+		if (!frame) {
+			shutdown = 1;
+		}
+
+		pthread_mutex_unlock(&frame_mutex);
+		usleep(100000);
+	}
+
+	pthread_exit(NULL);
+}
+
+static void *process_thread_func(void *src) {
+	source_t *source = (source_t *) src;
+	IplImage *img;
+	int key;
+
+	while (!shutdown) {
+		while (!frame) {
+			sleep(1);
+			continue;
+		}
+
+		pthread_mutex_lock(&frame_mutex);
+
+		img = cvCreateImage(cvSize(frame->width, frame->height),
+			                IPL_DEPTH_8U, frame->nChannels);
+		if (frame->origin == IPL_ORIGIN_TL) {
+			cvCopy(frame, img, 0);
+		} else {
+			cvFlip(frame, img, 0);
+		}
+
+		pthread_mutex_unlock(&frame_mutex);
+
+		cvShowImage("mainWin", img);
+		key = cvWaitKey(source->type == CAPTURE ? 10 : 0);
+		if (key == 27) {
+			shutdown = 1;
+		}
+
+		cvReleaseImage(&img);
+	}
+
+	pthread_exit(NULL);
+}
+
 int main(int argc, char *argv[]) {
 	CvCapture *capture = NULL;
-	IplImage *img = NULL, *frame = NULL;
+	IplImage *img = NULL;
 	char *input_file = NULL;
 	int cam_index = 0;
-	int opt, key;
+	int opt;
+	source_t source;
+	pthread_t capture_thread;
+	pthread_t process_thread;
+
+	pthread_mutex_init(&frame_mutex, NULL);
 
 	/* Parse command arguments */
 	while ((opt = getopt(argc, argv, "c:")) != -1) {
@@ -72,8 +137,14 @@ int main(int argc, char *argv[]) {
 			exit_with("Failed to open image %s\n", input_file);
 		}
 
-		cvShowImage("mainWin", img);
-		cvWaitKey(0);
+		frame = img;
+		source.type = IMAGE_FILE;
+		source.capture = NULL;
+
+		pthread_create(&process_thread, NULL,
+		               process_thread_func, (void *) &source);
+
+		pthread_join(process_thread, NULL);
 
 		cvReleaseImage(&img);
 	} else {
@@ -83,31 +154,21 @@ int main(int argc, char *argv[]) {
 			exit_with("Failed to open cam #%d\n", cam_index);
 		}
 
-		while (1) {
-			frame = cvQueryFrame(capture);
-			if (!frame) {
-				break;
-			}
+		source.type = CAPTURE;
+		source.capture = capture;
 
-			img = cvCreateImage(cvSize(frame->width, frame->height),
-			                    IPL_DEPTH_8U, frame->nChannels);
-			if (frame->origin == IPL_ORIGIN_TL) {
-				cvCopy(frame, img, 0);
-			} else {
-				cvFlip(frame, img, 0);
-			}
+		pthread_create(&capture_thread, NULL,
+		               capture_thread_func, (void *) &source);
+		pthread_create(&process_thread, NULL,
+		               process_thread_func, (void *) &source);
 
-			cvShowImage("mainWin", img);
-			key = cvWaitKey(10);
-			if (key == 27) {
-				break;
-			}
-
-			cvReleaseImage(&img);
-		}
+		pthread_join(capture_thread, NULL);
+		pthread_join(process_thread, NULL);
 
 		cvReleaseCapture(&capture);
 	}
 
-	exit(EXIT_SUCCESS);
+	pthread_mutex_destroy(&frame_mutex);
+
+	pthread_exit(NULL);
 }
