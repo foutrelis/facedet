@@ -118,10 +118,6 @@ int main(int argc, char *argv[]) {
 		}
 	}
 
-#ifdef DEBUG
-	fprintf(stderr, "argc = %d\n", argc);
-	fprintf(stderr, "optind = %d\n", optind);
-#endif
 	/* See if there is an input file given */
 	if (argc > optind) {
 		input_file = argv[optind];
