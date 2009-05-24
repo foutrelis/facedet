@@ -109,6 +109,7 @@ static void *process_thread_func(void *src) {
 
 		pthread_mutex_lock(&frame_mutex);
 
+		/* Create a copy of the frame */
 		img = cvCreateImage(cvSize(frame->width, frame->height),
 			                IPL_DEPTH_8U, frame->nChannels);
 		if (frame->origin == IPL_ORIGIN_TL) {
@@ -123,6 +124,7 @@ static void *process_thread_func(void *src) {
 
 		cvShowImage("mainWin", img);
 		key = cvWaitKey(source->type == CAPTURE ? 10 : 0);
+		/* 27 is ESC key */
 		if ((key & 0xFF) == 27) {
 			shutdown = 1;
 		}
