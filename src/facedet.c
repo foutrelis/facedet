@@ -84,7 +84,7 @@ static void *process_thread_func(void *src) {
 
 		cvShowImage("mainWin", img);
 		key = cvWaitKey(source->type == CAPTURE ? 10 : 0);
-		if (key == 27) {
+		if ((key & 0xFF) == 27) {
 			shutdown = 1;
 		}
 
