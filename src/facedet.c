@@ -32,12 +32,49 @@
 	#include <config.h>
 #endif
 
-IplImage *frame = NULL;
-pthread_mutex_t frame_mutex;
-int shutdown = 0;
+static IplImage *frame = NULL;
+static pthread_mutex_t frame_mutex;
+static int shutdown = 0;
+
+static CvMemStorage *storage = NULL;
+static CvHaarClassifierCascade *cascade = NULL;
+static const char *cascade_file = "/usr/share/opencv/haarcascades/haarcascade_frontalface_alt.xml";
 
 static void usage() {
-	fprintf(stderr, "Usage: facedet [-c camera_index] [image_file]\n");
+	fprintf(stderr, "Usage: facedet [-c camera_index] [-d cascade_file] [image_file]\n");
+}
+
+static void detect_and_draw(IplImage *img) {
+	int i;
+
+	/* Two points to represent the face locations */
+	CvPoint pt1, pt2;
+
+	/* Sequence to store detected faces */
+	CvSeq *faces;
+
+	/* Rectangle used for marking the face location */
+	CvRect *r;
+
+	/* Clear the memory storage */
+	cvClearMemStorage(storage);
+
+	/* Detect the faces */
+	faces = cvHaarDetectObjects(img, cascade, storage,
+	                            1.1, 2, CV_HAAR_DO_CANNY_PRUNING,
+	                            cvSize(40, 40));
+
+	/* Mark faces with red rectangles */
+	for(i = 0; i < (faces ? faces->total : 0); i++) {
+		r = (CvRect *) cvGetSeqElem(faces, i);
+
+		pt1.x = r->x;
+		pt1.y = r->y;
+		pt2.x = r->x + r->width;
+		pt2.y = r->y + r->height;
+
+		cvRectangle(img, pt1, pt2, CV_RGB(255,0,0), 3, 8, 0);
+	}
 }
 
 static void *capture_thread_func(void *src) {
@@ -82,6 +119,8 @@ static void *process_thread_func(void *src) {
 
 		pthread_mutex_unlock(&frame_mutex);
 
+		detect_and_draw(img);
+
 		cvShowImage("mainWin", img);
 		key = cvWaitKey(source->type == CAPTURE ? 10 : 0);
 		if ((key & 0xFF) == 27) {
@@ -107,10 +146,13 @@ int main(int argc, char *argv[]) {
 	pthread_mutex_init(&frame_mutex, NULL);
 
 	/* Parse command arguments */
-	while ((opt = getopt(argc, argv, "c:")) != -1) {
+	while ((opt = getopt(argc, argv, "c:d:")) != -1) {
 		switch (opt) {
 			case 'c':
 				cam_index = atoi(optarg);
+				break;
+			case 'd':
+				cascade_file = optarg;
 				break;
 			default: /* '?' */
 				usage();
@@ -122,6 +164,13 @@ int main(int argc, char *argv[]) {
 	if (argc > optind) {
 		input_file = argv[optind];
 	}
+
+	cascade = (CvHaarClassifierCascade *) cvLoad(cascade_file, 0, 0, 0);
+	if (!cascade) {
+		exit_with("Failed to load classifier cascade\n");
+	}
+
+	storage = cvCreateMemStorage(0);
 
 	cvNamedWindow("mainWin", CV_WINDOW_AUTOSIZE);
 	cvMoveWindow("mainWin", 50, 50);
