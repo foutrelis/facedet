@@ -18,4 +18,9 @@
  * along with facedet.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#ifndef COMMON_H
+#define COMMON_H
+
 void exit_with(const char *fmt, ...);
+
+#endif
