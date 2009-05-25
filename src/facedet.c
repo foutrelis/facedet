@@ -101,12 +101,11 @@ static void *process_thread_func(void *src) {
 	IplImage *img;
 	int key;
 
-	while (!shutdown) {
-		while (!frame) {
-			sleep(1);
-			continue;
-		}
+	while (!frame && !shutdown) {
+		sleep(1);
+	}
 
+	while (!shutdown) {
 		pthread_mutex_lock(&frame_mutex);
 
 		/* Create a copy of the frame */
