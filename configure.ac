@@ -4,7 +4,7 @@ AM_INIT_AUTOMAKE([-Wall -Werror foreign])
 AC_PROG_CC
 
 dnl Check for opencv
-PKG_CHECK_MODULES(OPENCV, opencv >= 1.1.0, , AC_MSG_ERROR([OpenCV 1.1.0 or greater is required.]))
+PKG_CHECK_MODULES(OPENCV, opencv >= 1.0.0, , AC_MSG_ERROR([OpenCV 1.0.0 or greater is required.]))
 AC_SUBST(OPENCV_CFLAGS)
 AC_SUBST(OPENCV_LIBS)
 
