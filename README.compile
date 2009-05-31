@@ -1,0 +1,31 @@
+This software has only been tested on Arch Linux, but should run on other
+distributions as well. Windows platforms are not expected to be supported
+without slight modification.
+
+Dependencies
+============
+
+- OpenCV >= 1.0.0
+- gcc 4.x preferred, should work with 3.x too
+- autoconf
+- automake
+
+Below you can see which packages (or package groups) provide these dependencies
+on Arch Linux and Ubuntu Linux:
+
+- Arch Linux: base-devel, opencv
+- Ubuntu: build-essential, autoconf, libcv-dev
+
+Compilation Steps
+=================
+
+ $ autoreconf -i (this command is only needed for git checkouts)
+ $ ./configure
+ $ make
+
+Running
+=======
+
+facedet can be executed by calling it from the current directory:
+
+ $ ./src/facedet
